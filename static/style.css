@@ -145,6 +145,39 @@ button.secundario:hover {
   color: #6b7280;
 }
 
+.producto .fila-agregar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.producto .fila-agregar input {
+  width: 60px;
+  padding: 0.35rem;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+}
+
+.lista-carrito {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.item-carrito {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--borde);
+  padding-bottom: 0.4rem;
+}
+
+.carrito-total {
+  text-align: right;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
 .mensaje {
   font-size: 0.85rem;
   margin-top: 0.5rem;
