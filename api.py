@@ -24,9 +24,29 @@ class Producto:
         }
 
 
+class ItemCarrito:
+    def __init__(self, producto, cantidad):
+        self.producto = producto
+        self.cantidad = cantidad
+
+    @property
+    def subtotal(self):
+        return round(self.producto.precio * self.cantidad, 2)
+
+    def to_dict(self):
+        return {
+            "producto_id": self.producto.id,
+            "nombre": self.producto.nombre,
+            "precio": self.producto.precio,
+            "cantidad": self.cantidad,
+            "subtotal": self.subtotal,
+        }
+
+
 class Tienda:
     def __init__(self):
         self.productos = []
+        self.carrito = []
 
     def registrar_producto(self, nombre, precio, stock):
         producto = Producto(nombre, precio, stock)
@@ -38,6 +58,28 @@ class Tienda:
             if producto.id == producto_id:
                 return producto
         return None
+
+    def agregar_al_carrito(self, producto, cantidad):
+        if cantidad > producto.stock:
+            raise ValueError("No hay suficiente stock disponible")
+        for item in self.carrito:
+            if item.producto is producto:
+                item.cantidad += cantidad
+                producto.stock -= cantidad
+                return item
+        item = ItemCarrito(producto, cantidad)
+        self.carrito.append(item)
+        producto.stock -= cantidad
+        return item
+
+    def total_carrito(self):
+        return round(sum(item.subtotal for item in self.carrito), 2)
+
+    def finalizar_compra(self):
+        total = self.total_carrito()
+        items = [item.to_dict() for item in self.carrito]
+        self.carrito = []
+        return total, items
 
 
 tienda = Tienda()
@@ -64,6 +106,9 @@ def api_info():
             "GET /productos": "ver productos disponibles",
             "GET /productos/<id>": "ver un producto",
             "POST /productos": "registrar producto (nombre, precio obligatorios)",
+            "POST /carrito": "agregar producto al carrito (producto_id, cantidad)",
+            "GET /carrito": "ver carrito y total",
+            "POST /carrito/finalizar": "finalizar compra",
         },
     })
 
@@ -107,6 +152,51 @@ def registrar_producto():
 
     producto = tienda.registrar_producto(nombre, precio, stock)
     return jsonify(producto.to_dict()), 201
+
+
+# Agregar producto al carrito
+@app.post("/carrito")
+def agregar_al_carrito():
+    datos = request.get_json(silent=True) or {}
+    producto_id = datos.get("producto_id")
+    cantidad = datos.get("cantidad")
+
+    try:
+        producto_id = int(producto_id)
+        cantidad = int(cantidad)
+    except (TypeError, ValueError):
+        return jsonify({"error": "producto_id y cantidad son obligatorios y deben ser numeros"}), 400
+    if cantidad <= 0:
+        return jsonify({"error": "La cantidad debe ser mayor a 0"}), 400
+
+    producto = tienda.buscar_producto(producto_id)
+    if not producto:
+        return jsonify({"error": "Producto no encontrado"}), 404
+
+    try:
+        item = tienda.agregar_al_carrito(producto, cantidad)
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
+
+    return jsonify(item.to_dict()), 201
+
+
+# Mostrar productos del carrito y calcular el total
+@app.get("/carrito")
+def ver_carrito():
+    return jsonify({
+        "items": [item.to_dict() for item in tienda.carrito],
+        "total": tienda.total_carrito(),
+    })
+
+
+# Finalizar la compra
+@app.post("/carrito/finalizar")
+def finalizar_compra():
+    if not tienda.carrito:
+        return jsonify({"error": "El carrito esta vacio"}), 400
+    total, items = tienda.finalizar_compra()
+    return jsonify({"mensaje": "Compra realizada con exito", "items": items, "total": total})
 
 
 if __name__ == "__main__":
